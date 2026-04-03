@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Finland Crypto FIFO Tax Calculator</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --color-background-primary: #ffffff;
+    --color-background-secondary: #f5f5f4;
+    --color-background-tertiary: #eeede8;
+    --color-background-info: #e6f1fb;
+    --color-background-danger: #fcebeb;
+    --color-background-success: #eaf3de;
+    --color-background-warning: #faeeda;
+    --color-text-primary: #1a1a19;
+    --color-text-secondary: #5f5e5a;
+    --color-text-tertiary: #888780;
+    --color-text-info: #185fa5;
+    --color-text-danger: #a32d2d;
+    --color-text-success: #3b6d11;
+    --color-text-warning: #854f0b;
+    --color-border-tertiary: rgba(26,26,25,0.15);
+    --color-border-secondary: rgba(26,26,25,0.3);
+    --color-border-primary: rgba(26,26,25,0.4);
+    --color-border-info: rgba(24,95,165,0.3);
+    --color-border-danger: rgba(163,45,45,0.3);
+    --color-border-success: rgba(59,109,17,0.3);
+    --font-sans: system-ui, -apple-system, sans-serif;
+    --font-mono: ui-monospace, monospace;
+    --border-radius-md: 8px;
+    --border-radius-lg: 12px;
+    --border-radius-xl: 16px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --color-background-primary: #1c1c1b;
+      --color-background-secondary: #252524;
+      --color-background-tertiary: #2e2e2c;
+      --color-background-info: #042c53;
+      --color-background-danger: #501313;
+      --color-background-success: #173404;
+      --color-background-warning: #412402;
+      --color-text-primary: #f0ede8;
+      --color-text-secondary: #b4b2a9;
+      --color-text-tertiary: #888780;
+      --color-text-info: #85b7eb;
+      --color-text-danger: #f09595;
+      --color-text-success: #97c459;
+      --color-text-warning: #ef9f27;
+      --color-border-tertiary: rgba(240,237,232,0.15);
+      --color-border-secondary: rgba(240,237,232,0.3);
+      --color-border-primary: rgba(240,237,232,0.4);
+      --color-border-info: rgba(133,183,235,0.3);
+      --color-border-danger: rgba(240,149,149,0.3);
+      --color-border-success: rgba(151,196,89,0.3);
+    }
+  }
+  body {
+    font-family: var(--font-sans);
+    background: var(--color-background-tertiary);
+    color: var(--color-text-primary);
+    min-height: 100vh;
+    padding: 2rem 1rem;
+  }
+  .container { max-width: 860px; margin: 0 auto; }
+  * { box-sizing: border-box; }
+  h2 { font-size: 18px; font-weight: 500; color: var(--color-text-primary); margin-bottom: 4px; }
+  .sub { font-size: 13px; color: var(--color-text-secondary); margin-bottom: 1.5rem; }
+  .tabs { display: flex; margin-bottom: 1.5rem; border-bottom: 1px solid var(--color-border-tertiary); }
+  .tab { padding: 8px 16px; font-size: 13px; font-weight: 500; border: none; background: none; cursor: pointer; color: var(--color-text-secondary); border-bottom: 2px solid transparent; margin-bottom: -1px; border-radius: 0; }
+  .tab:hover { background: none; color: var(--color-text-primary); }
+  .tab.active { color: var(--color-text-primary); border-bottom-color: var(--color-text-primary); }
+  .section { display: none; }
+  .section.active { display: block; }
+  .card { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .row { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin-bottom: 8px; }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  label { font-size: 12px; color: var(--color-text-secondary); }
+  .field-hint { font-size: 11px; color: var(--color-text-tertiary); margin-top: 2px; }
+  input, select, textarea {
+    font-size: 13px; padding: 6px 8px;
+    border: 0.5px solid var(--color-border-secondary);
+    border-radius: var(--border-radius-md);
+    background: var(--color-background-primary);
+    color: var(--color-text-primary);
+    width: 100%;
+    font-family: var(--font-sans);
+  }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--color-border-primary); }
+  .btn-row { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  button {
+    font-size: 13px; padding: 6px 14px;
+    border: 0.5px solid var(--color-border-secondary);
+    border-radius: var(--border-radius-md);
+    background: var(--color-background-secondary);
+    color: var(--color-text-primary);
+    cursor: pointer;
+    font-family: var(--font-sans);
+  }
+  button:hover { background: var(--color-background-tertiary); }
+  .btn-primary { background: var(--color-text-primary); color: var(--color-background-primary); border-color: var(--color-text-primary); }
+  .btn-primary:hover { opacity: 0.85; }
+  .btn-danger { color: var(--color-text-danger); border-color: var(--color-border-danger); }
+  .tx-list { margin-top: 1rem; }
+  .tx-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: var(--border-radius-md); background: var(--color-background-secondary); margin-bottom: 6px; font-size: 13px; }
+  .badge { font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 99px; }
+  .badge-buy { background: #eaf3de; color: #3b6d11; }
+  .badge-sell { background: #fcebeb; color: #a32d2d; }
+  .tx-info { flex: 1; color: var(--color-text-primary); }
+  .tx-meta { color: var(--color-text-secondary); font-size: 12px; }
+  .del-btn { background: none; border: none; color: var(--color-text-secondary); cursor: pointer; padding: 2px 6px; font-size: 16px; line-height: 1; }
+  .del-btn:hover { color: var(--color-text-danger); background: none; }
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 1.25rem; }
+  .metric { background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 12px; }
+  .metric-label { font-size: 12px; color: var(--color-text-secondary); margin-bottom: 4px; }
+  .metric-val { font-size: 20px; font-weight: 500; color: var(--color-text-primary); }
+  .metric-val.pos { color: #3b6d11; }
+  .metric-val.neg { color: #a32d2d; }
+  .result-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .result-table th { text-align: left; font-weight: 500; font-size: 12px; color: var(--color-text-secondary); padding: 6px 8px; border-bottom: 0.5px solid var(--color-border-tertiary); }
+  .result-table td { padding: 8px; border-bottom: 0.5px solid var(--color-border-tertiary); color: var(--color-text-primary); }
+  .result-table tr:last-child td { border-bottom: none; }
+  .gain-pos { color: #3b6d11; font-weight: 500; }
+  .gain-neg { color: #a32d2d; font-weight: 500; }
+  .empty { text-align: center; padding: 2rem; color: var(--color-text-secondary); font-size: 13px; }
+  .tax-box { border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 1rem 1.25rem; margin-top: 1rem; }
+  .tax-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; font-size: 13px; border-bottom: 0.5px solid var(--color-border-tertiary); color: var(--color-text-primary); }
+  .tax-row:last-child { border-bottom: none; font-weight: 500; }
+  .info-box { background: var(--color-background-info); border: 0.5px solid var(--color-border-info); border-radius: var(--border-radius-md); padding: 10px 14px; font-size: 12px; color: var(--color-text-info); margin-bottom: 1rem; }
+  .year-filter { display: flex; align-items: center; gap: 10px; margin-bottom: 1rem; font-size: 13px; color: var(--color-text-secondary); }
+  .year-filter select { width: auto; }
+  .section-title { font-size: 14px; font-weight: 500; color: var(--color-text-primary); margin-bottom: 8px; }
+  .import-area { border: 0.5px dashed var(--color-border-secondary); border-radius: var(--border-radius-md); padding: 1rem; margin-bottom: 1rem; }
+  .import-area textarea { width: 100%; min-height: 100px; font-size: 12px; font-family: var(--font-mono); resize: vertical; }
+  .overflow-x { overflow-x: auto; }
+  .badge-hmo { display: inline-block; font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 99px; background: var(--color-background-success); color: var(--color-text-success); vertical-align: middle; margin-left: 4px; }
+  .cost-actual { font-size: 11px; color: var(--color-text-tertiary); margin-top: 2px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h2>Crypto FIFO tax calculator</h2>
+  <p class="sub">Finnish tax reporting (Vero) — FIFO method</p>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('transactions')">Transactions</button>
+    <button class="tab" onclick="switchTab('results')">Results</button>
+    <button class="tab" onclick="switchTab('import')">Import CSV</button>
+  </div>
+
+  <div id="transactions" class="section active">
+    <div class="info-box">
+      <strong>How to use this calculator:</strong> Enter every crypto purchase and sale you've made. You need both — purchases tell the calculator what you originally paid (your cost basis), and sales trigger the tax calculation. You don't owe tax when you buy, only when you sell.<br><br>
+      <strong>Traded one crypto for another?</strong> That counts as a taxable sale in Finland. Enter it as a sell of the coin you gave up (at its EUR market value on that day), then a buy of the coin you received.
+    </div>
+    <div class="card">
+      <div class="section-title">Add transaction</div>
+      <div class="row">
+        <div class="field">
+          <label>Type</label>
+          <select id="tx-type" onchange="updateFormType()">
+            <option value="buy">Buy</option>
+            <option value="sell">Sell</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Date</label>
+          <input type="date" id="tx-date" />
+        </div>
+        <div class="field">
+          <label>Asset</label>
+          <input type="text" id="tx-asset" placeholder="BTC" style="text-transform:uppercase;" />
+          <span class="field-hint">Ticker symbol, e.g. BTC, ETH</span>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>Quantity</label>
+          <input type="number" id="tx-amount" placeholder="0.5" step="any" min="0" />
+          <span class="field-hint">Number of coins or tokens</span>
+        </div>
+        <div class="field">
+          <label id="price-label">Total cost (€ incl. fees)</label>
+          <input type="number" id="tx-price" placeholder="15000" step="any" min="0" />
+          <span class="field-hint" id="price-hint">The full amount you paid in euros, including any trading fees</span>
+        </div>
+        <div class="field">
+          <label>Notes (optional)</label>
+          <input type="text" id="tx-notes" placeholder="" />
+          <span class="field-hint">E.g. exchange name</span>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn-primary" onclick="addTransaction()">Add transaction</button>
+        <button onclick="clearForm()">Clear</button>
+      </div>
+    </div>
+    <div class="tx-list" id="tx-list"></div>
+  </div>
+
+  <div id="results" class="section">
+    <div class="year-filter">
+      <span>Tax year:</span>
+      <select id="year-select" onchange="renderResults()"></select>
+    </div>
+    <div id="results-content"></div>
+    <div class="card" style="margin-top:1rem;">
+      <div class="section-title">Export</div>
+      <div class="btn-row">
+        <button onclick="exportPDF()">Export PDF (Finnish)</button>
+        <button onclick="exportCSV()">Export as CSV</button>
+      </div>
+    </div>
+    <div class="card" style="margin-top:1rem;">
+      <div class="section-title">What do these numbers mean?</div>
+      <div style="font-size:13px;color:var(--color-text-secondary);display:flex;flex-direction:column;gap:8px;margin-top:8px;">
+        <div><strong style="color:var(--color-text-primary);">Cost basis</strong> — What you originally paid for the coins that were sold, including purchase fees. This is deducted from your proceeds to calculate your gain or loss.</div>
+        <div><strong style="color:var(--color-text-primary);">FIFO</strong> — "First in, first out." Finnish tax rules require that your oldest coins are treated as sold first. This affects your cost basis and how long each coin was held.</div>
+        <div><strong style="color:var(--color-text-primary);">Held (days)</strong> — How long the oldest coins in that sale had been held. The holding period affects whether the acquisition cost presumption can give you a better deduction.</div>
+        <div><strong style="color:var(--color-text-primary);">Acquisition cost presumption (hankintameno-olettama, HMO)</strong> — An alternative to using your actual purchase price. Finnish law lets you deduct 20% of the sale price as your cost instead of what you really paid (40% if you held for 10+ years). This is useful if your records are incomplete, or if it simply results in less tax. The calculator applies it automatically when it helps you.</div>
+        <div><strong style="color:var(--color-text-primary);">Capital loss</strong> — If you sold for less than you paid, you made a loss. Losses can be deducted against capital gains for up to 5 years. Report them in OmaVero even if you have no gains this year.</div>
+        <div><strong style="color:var(--color-text-primary);">Tax rates</strong> — Finland taxes capital gains at 30% on the first €30,000 and 34% above that.</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="import" class="section">
+    <div class="card">
+      <div class="section-title">Import from CSV</div>
+      <p style="font-size:13px;color:var(--color-text-secondary);margin-bottom:12px;">Paste CSV with columns: type, date, asset, amount, total_eur (and optional notes). First row = header.</p>
+      <div class="import-area">
+        <textarea id="csv-input" placeholder="type,date,asset,amount,total_eur,notes&#10;buy,2022-01-15,BTC,0.5,15000,Coinbase&#10;sell,2023-06-10,BTC,0.2,8000,"></textarea>
+      </div>
+      <div class="btn-row">
+        <button class="btn-primary" onclick="importCSV()">Import</button>
+        <button onclick="loadSampleData()">Load sample data</button>
+      </div>
+      <div id="import-msg" style="font-size:12px;margin-top:8px;"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+let transactions = JSON.parse(localStorage.getItem('fifo_tx') || '[]');
+
+function save() {
+  try { localStorage.setItem('fifo_tx', JSON.stringify(transactions)); } catch(e) {}
+}
+
+function updateFormType() {
+  const t = document.getElementById('tx-type').value;
+  document.getElementById('price-label').textContent = t === 'buy' ? 'Total cost (€ incl. fees)' : 'Total proceeds (€ after fees)';
+  document.getElementById('price-hint').textContent = t === 'buy'
+    ? 'The full amount you paid in euros, including any trading fees'
+    : 'The total euros you received from the sale, after any trading fees';
+}
+
+function addTransaction() {
+  const type = document.getElementById('tx-type').value;
+  const date = document.getElementById('tx-date').value;
+  const asset = document.getElementById('tx-asset').value.trim().toUpperCase();
+  const amount = parseFloat(document.getElementById('tx-amount').value);
+  const price = parseFloat(document.getElementById('tx-price').value);
+  const notes = document.getElementById('tx-notes').value.trim();
+  if (!date || !asset || isNaN(amount) || amount <= 0 || isNaN(price) || price < 0) {
+    alert('Please fill in date, asset, amount, and price/cost correctly.');
+    return;
+  }
+  transactions.push({ id: Date.now(), type, date, asset, amount, total_eur: price, notes });
+  transactions.sort((a, b) => a.date.localeCompare(b.date));
+  save();
+  renderTransactions();
+  clearForm();
+}
+
+function clearForm() {
+  document.getElementById('tx-date').value = '';
+  document.getElementById('tx-asset').value = '';
+  document.getElementById('tx-amount').value = '';
+  document.getElementById('tx-price').value = '';
+  document.getElementById('tx-notes').value = '';
+}
+
+function deleteTransaction(id) {
+  transactions = transactions.filter(t => t.id !== id);
+  save();
+  renderTransactions();
+}
+
+function fmt(n) {
+  return new Intl.NumberFormat('fi-FI', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+}
+
+function renderTransactions() {
+  const list = document.getElementById('tx-list');
+  if (transactions.length === 0) {
+    list.innerHTML = '<div class="empty">No transactions yet. Add your first buy or sell above.</div>';
+    return;
+  }
+  list.innerHTML = [...transactions].reverse().map(t => `
+    <div class="tx-item">
+      <span class="badge badge-${t.type}">${t.type === 'buy' ? 'BUY' : 'SELL'}</span>
+      <div class="tx-info">
+        <div>${t.asset} — ${t.amount} units @ ${fmt(t.total_eur / t.amount)} €/unit</div>
+        <div class="tx-meta">${t.date}${t.notes ? ' · ' + t.notes : ''} · Total: ${fmt(t.total_eur)} €</div>
+      </div>
+      <button class="del-btn" onclick="deleteTransaction(${t.id})" title="Delete">×</button>
+    </div>
+  `).join('');
+}
+
+function getYears() {
+  return [...new Set(transactions.map(t => t.date.substring(0, 4)))].sort();
+}
+
+function calcFIFO(year) {
+  const assets = [...new Set(transactions.map(t => t.asset))];
+  const results = [];
+  for (const asset of assets) {
+    const txs = transactions.filter(t => t.asset === asset).sort((a, b) => a.date.localeCompare(b.date));
+    const queue = [];
+    for (const tx of txs) {
+      if (tx.type === 'buy') {
+        queue.push({ date: tx.date, amount: tx.amount, cost_per_unit: tx.total_eur / tx.amount, remaining: tx.amount });
+      } else {
+        if (tx.date.substring(0, 4) !== year) {
+          let rem = tx.amount;
+          while (rem > 0 && queue.length > 0) {
+            const lot = queue[0];
+            const used = Math.min(lot.remaining, rem);
+            lot.remaining -= used;
+            rem -= used;
+            if (lot.remaining < 1e-10) queue.shift();
+          }
+          continue;
+        }
+        const proceeds = tx.total_eur;
+        const sell_date_obj = new Date(tx.date);
+        let remaining = tx.amount;
+        let total_cost = 0;
+        let total_hmo_cost = 0;
+        const lots_used = [];
+        while (remaining > 1e-10 && queue.length > 0) {
+          const lot = queue[0];
+          const used = Math.min(lot.remaining, remaining);
+          total_cost += used * lot.cost_per_unit;
+          // HMO calculated per lot: each lot's share of proceeds × its own HMO rate
+          const lot_hold_days = Math.round((sell_date_obj - new Date(lot.date)) / 86400000);
+          const lot_hmo_rate = lot_hold_days / 365 >= 10 ? 0.4 : 0.2;
+          total_hmo_cost += (used / tx.amount) * proceeds * lot_hmo_rate;
+          lots_used.push({ date: lot.date, amount: used, cost_per_unit: lot.cost_per_unit, hold_days: lot_hold_days });
+          lot.remaining -= used;
+          remaining -= used;
+          if (lot.remaining < 1e-10) queue.shift();
+        }
+        const gain = proceeds - total_cost;
+        const use_hmo = total_hmo_cost > total_cost && total_cost > 0;
+        const hold_days = lots_used.length > 0 ? lots_used[0].hold_days : 0;
+        results.push({
+          asset, sell_date: tx.date, amount: tx.amount, proceeds,
+          cost_basis: total_cost, hmo_cost: total_hmo_cost, use_hmo,
+          effective_cost: use_hmo ? total_hmo_cost : total_cost,
+          gain: use_hmo ? proceeds - total_hmo_cost : gain,
+          hold_days, notes: tx.notes
+        });
+      }
+    }
+  }
+  return results;
+}
+
+function calcTax(gain) {
+  if (gain <= 0) return 0;
+  return Math.min(gain, 30000) * 0.30 + Math.max(0, gain - 30000) * 0.34;
+}
+
+function renderResults() {
+  const sel = document.getElementById('year-select');
+  const year = sel.value;
+  const content = document.getElementById('results-content');
+  if (!year) { content.innerHTML = '<div class="empty">No transactions to calculate. Add transactions first.</div>'; return; }
+  const results = calcFIFO(year);
+  if (results.length === 0) { content.innerHTML = '<div class="empty">No sales in ' + year + '. Select a different tax year.</div>'; return; }
+  const total_proceeds = results.reduce((s, r) => s + r.proceeds, 0);
+  const total_cost = results.reduce((s, r) => s + r.effective_cost, 0);
+  const total_gain = results.reduce((s, r) => s + r.gain, 0);
+  const net_gain = Math.max(0, total_gain);
+  const net_loss = Math.min(0, total_gain);
+  const exempt = total_proceeds <= 1000;
+  const tax = exempt ? 0 : calcTax(net_gain);
+  const hmo_used = results.some(r => r.use_hmo);
+
+  // Calculate how much tax HMO saved vs using actual cost basis throughout
+  const gain_without_hmo = results.reduce((s, r) => s + (r.proceeds - r.cost_basis), 0);
+  const tax_without_hmo = exempt ? 0 : calcTax(Math.max(0, gain_without_hmo));
+  const hmo_tax_saving = tax_without_hmo - tax;
+
+  content.innerHTML = `
+    <div class="metrics">
+      <div class="metric"><div class="metric-label">Total proceeds</div><div class="metric-val">${fmt(total_proceeds)} €</div></div>
+      <div class="metric"><div class="metric-label">Cost basis</div><div class="metric-val">${fmt(total_cost)} €</div></div>
+      <div class="metric"><div class="metric-label">Net gain / loss</div><div class="metric-val ${total_gain >= 0 ? 'pos' : 'neg'}">${total_gain >= 0 ? '+' : ''}${fmt(total_gain)} €</div></div>
+      <div class="metric"><div class="metric-label">Est. capital gains tax</div><div class="metric-val">${fmt(tax)} €</div></div>
+    </div>
+    ${exempt ? '<div class="info-box"><strong>Tax-free year:</strong> Your total sale proceeds for ' + year + ' are €1,000 or less, so any gains are fully tax-exempt under Finnish law (TVL 48 §). No need to report this to Vero.</div>' : ''}
+    ${!exempt && hmo_used ? `<div class="info-box"><strong>Acquisition cost presumption (hankintameno-olettama) applied</strong> — saving you an estimated <strong>${fmt(hmo_tax_saving)} €</strong> in tax.<br><br>Finnish law lets you use a fixed percentage of the sale price as your cost instead of what you actually paid: <strong>20%</strong> if you held for under 10 years, <strong>40%</strong> if held 10 years or more. The calculator applies this automatically on any sale where it reduces your tax. Rows marked <span class="badge-hmo">HMO</span> used this method.</div>` : ''}
+    <div class="card overflow-x">
+      <table class="result-table">
+        <thead><tr>
+          <th>Asset</th><th>Sold</th><th>Amount</th><th>Proceeds (€)</th><th>Cost basis (€)</th><th>Gain / loss (€)</th><th>Held (days)</th>
+        </tr></thead>
+        <tbody>
+          ${results.map(r => `<tr>
+            <td>${r.asset}</td>
+            <td>${r.sell_date}</td>
+            <td>${r.amount.toFixed(8).replace(/\.?0+$/, '')}</td>
+            <td>${fmt(r.proceeds)}</td>
+            <td>
+              ${r.use_hmo
+                ? `${fmt(r.effective_cost)} <span class="badge-hmo">HMO</span>
+                   <div class="cost-actual">Actual paid: ${fmt(r.cost_basis)} — HMO more favourable</div>`
+                : fmt(r.effective_cost)
+              }
+            </td>
+            <td class="${r.gain >= 0 ? 'gain-pos' : 'gain-neg'}">${r.gain >= 0 ? '+' : ''}${fmt(r.gain)}</td>
+            <td>${r.hold_days}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+    <div class="tax-box">
+      <div class="section-title" style="margin-bottom:12px;">Tax breakdown ${year}</div>
+      ${exempt
+        ? `<div class="tax-row"><span>Total proceeds ≤ €1,000 — small disposal exemption (TVL 48 §)</span><span>Tax-exempt</span></div>`
+        : `<div class="tax-row"><span>Taxable gain (pääomatulo)</span><span>${fmt(net_gain)} €</span></div>
+      ${net_loss < 0 ? `<div class="tax-row"><span>Capital loss (carry forward 5 years)</span><span style="color:var(--color-text-danger)">${fmt(net_loss)} €</span></div>` : ''}
+      <div class="tax-row"><span>30% on first 30,000 €</span><span>${fmt(Math.min(net_gain, 30000) * 0.30)} €</span></div>
+      ${net_gain > 30000 ? `<div class="tax-row"><span>34% on amount above 30,000 €</span><span>${fmt((net_gain - 30000) * 0.34)} €</span></div>` : ''}
+      ${hmo_used && hmo_tax_saving > 0 ? `<div class="tax-row" style="color:var(--color-text-success)"><span>Estimated tax saved by HMO</span><span>−${fmt(hmo_tax_saving)} €</span></div>` : ''}`
+      }
+      <div class="tax-row"><span>Total estimated tax</span><span>${fmt(tax)} €</span></div>
+      <div style="font-size:11px;color:var(--color-text-secondary);margin-top:10px;">This is an estimate. Report your gains and losses in OmaVero under "Pääomatulot → Luovutusvoitot". Keep all records for 6 years.</div>
+    </div>`;
+}
+
+function updateYearSelect() {
+  const sel = document.getElementById('year-select');
+  const sellYears = [...new Set(transactions.filter(t => t.type === 'sell').map(t => t.date.substring(0, 4)))].sort();
+  const current = sel.value;
+  sel.innerHTML = sellYears.length === 0 ? '<option value="">—</option>' : sellYears.map(y => `<option value="${y}" ${y === current ? 'selected' : ''}>${y}</option>`).join('');
+  if (!sel.value && sellYears.length) sel.value = sellYears[sellYears.length - 1];
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', ['transactions','results','import'][i] === name));
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById(name).classList.add('active');
+  if (name === 'results') { updateYearSelect(); renderResults(); }
+}
+
+function importCSV() {
+  const raw = document.getElementById('csv-input').value.trim();
+  const msg = document.getElementById('import-msg');
+  if (!raw) { msg.textContent = 'Nothing to import.'; return; }
+  const lines = raw.split('\n').filter(l => l.trim());
+  const header = lines[0].toLowerCase().split(',').map(h => h.trim());
+  const ci = h => header.indexOf(h);
+  let added = 0, errors = 0;
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+    try {
+      const type = cols[ci('type')].toLowerCase();
+      const date = cols[ci('date')];
+      const asset = cols[ci('asset')].toUpperCase();
+      const amount = parseFloat(cols[ci('amount')]);
+      const total_eur = parseFloat(cols[ci('total_eur')]);
+      if (!['buy','sell'].includes(type) || !date || !asset || isNaN(amount) || isNaN(total_eur)) throw new Error();
+      transactions.push({ id: Date.now() + i, type, date, asset, amount, total_eur, notes: cols[ci('notes')] || '' });
+      added++;
+    } catch { errors++; }
+  }
+  transactions.sort((a, b) => a.date.localeCompare(b.date));
+  save();
+  renderTransactions();
+  msg.style.color = errors ? 'var(--color-text-warning)' : 'var(--color-text-success)';
+  msg.textContent = `Imported ${added} transaction${added !== 1 ? 's' : ''}${errors ? ', ' + errors + ' rows skipped.' : '.'}`;
+}
+
+function loadSampleData() {
+  transactions = [
+    // Early BTC buy — very low cost, will trigger 40% HMO (held 10+ years)
+    { id:  1, type: 'buy',  date: '2014-06-01', asset: 'BTC', amount: 0.5,  total_eur: 150,   notes: 'Early purchase' },
+    // Early ETH buy — low cost, will trigger 20% HMO
+    { id:  2, type: 'buy',  date: '2017-08-15', asset: 'ETH', amount: 3,    total_eur: 900,   notes: 'Bitstamp' },
+    // SOL buy — low cost, will trigger 20% HMO
+    { id:  3, type: 'buy',  date: '2020-12-01', asset: 'SOL', amount: 50,   total_eur: 1500,  notes: '' },
+    // BTC buy at peak — high cost, HMO will NOT help when sold
+    { id:  4, type: 'buy',  date: '2021-03-15', asset: 'BTC', amount: 0.5,  total_eur: 24000, notes: 'Coinbase' },
+    // ETH buy at peak — high cost, will produce a loss when sold
+    { id:  5, type: 'buy',  date: '2021-09-20', asset: 'ETH', amount: 5,    total_eur: 15000, notes: 'Binance' },
+    // BTC top-up
+    { id:  6, type: 'buy',  date: '2022-02-10', asset: 'BTC', amount: 0.3,  total_eur: 12000, notes: '' },
+    // ETH top-up
+    { id:  7, type: 'buy',  date: '2023-07-01', asset: 'ETH', amount: 2,    total_eur: 3600,  notes: '' },
+
+    // --- 2024 sales ---
+    // ETH: FIFO uses 2017 lot (€900 cost). HMO 20% = €1,800 > actual → HMO applied
+    { id:  8, type: 'sell', date: '2024-06-15', asset: 'ETH', amount: 3,    total_eur: 9000,  notes: 'Coinbase' },
+    // BTC: FIFO uses 2014 lot (€150 cost, 10+ years). HMO 40% = €16,000 >> actual → HMO applied
+    { id:  9, type: 'sell', date: '2024-11-10', asset: 'BTC', amount: 0.5,  total_eur: 40000, notes: '' },
+    // ETH: FIFO uses 2021 lot (€12,000 cost). HMO 20% = €2,000 < actual → loss of €2,000
+    { id: 10, type: 'sell', date: '2024-12-10', asset: 'ETH', amount: 4,    total_eur: 10000, notes: '' },
+
+    // --- 2025 sales ---
+    // SOL: FIFO uses 2020 lot (€900 cost). HMO 20% = €1,080 > actual → HMO applied
+    { id: 11, type: 'sell', date: '2025-01-20', asset: 'SOL', amount: 30,   total_eur: 5400,  notes: '' },
+    // BTC: FIFO uses 2021 lot (€24,000 cost). HMO 20% = €7,600 < actual → no HMO, gain €14,000
+    { id: 12, type: 'sell', date: '2025-03-01', asset: 'BTC', amount: 0.5,  total_eur: 38000, notes: '' },
+  ];
+  save();
+  renderTransactions();
+  document.getElementById('import-msg').style.color = 'var(--color-text-success)';
+  document.getElementById('import-msg').textContent = 'Sample data loaded (2024–2025). Switch to Results to see calculations — includes HMO cases.';
+}
+
+function exportCSV() {
+  const rows = ['type,date,asset,amount,total_eur,notes', ...transactions.map(t =>
+    [t.type, t.date, t.asset, t.amount, t.total_eur, t.notes || ''].join(','))].join('\n');
+  download('crypto_transactions.csv', rows, 'text/csv');
+}
+
+function exportPDF() {
+  updateYearSelect();
+  const year = document.getElementById('year-select').value;
+  if (!year) { alert('Ei myyntejä vietäväksi.'); return; }
+  const results = calcFIFO(year);
+  if (results.length === 0) { alert('Ei myyntejä vuodelle ' + year + '.'); return; }
+
+  const total_proceeds = results.reduce((s, r) => s + r.proceeds, 0);
+  const total_cost     = results.reduce((s, r) => s + r.effective_cost, 0);
+  const total_gain     = results.reduce((s, r) => s + r.gain, 0);
+  const net_gain       = Math.max(0, total_gain);
+  const net_loss       = Math.min(0, total_gain);
+  const exempt         = total_proceeds <= 1000;
+  const tax            = exempt ? 0 : calcTax(net_gain);
+  const hmo_used       = results.some(r => r.use_hmo);
+  const generated      = new Date().toLocaleDateString('fi-FI');
+
+  const rows = results.map(r => `
+    <tr>
+      <td>${r.asset}</td>
+      <td>${r.sell_date}</td>
+      <td style="text-align:right">${r.amount.toFixed(8).replace(/\.?0+$/, '')}</td>
+      <td style="text-align:right">${fmt(r.proceeds)}</td>
+      <td style="text-align:right">${fmt(r.effective_cost)}${r.use_hmo ? ' <span class="tag">HMO</span>' : ''}</td>
+      <td style="text-align:right;color:${r.gain >= 0 ? '#2d6a0a' : '#a32d2d'}">${r.gain >= 0 ? '+' : ''}${fmt(r.gain)}</td>
+      <td style="text-align:right">${r.hold_days}</td>
+    </tr>`).join('');
+
+  const taxBreakdown = exempt
+    ? `<tr><td>Vähäinen luovutus (TVL 48 §) — myyntitulot ≤ 1 000 €</td><td style="text-align:right">Veroton</td></tr>`
+    : `<tr><td>Verotettava pääomatulo</td><td style="text-align:right">${fmt(net_gain)} €</td></tr>
+       ${net_loss < 0 ? `<tr><td>Luovutustappio (vähennyskelpoinen 5 vuotta)</td><td style="text-align:right;color:#a32d2d">${fmt(net_loss)} €</td></tr>` : ''}
+       <tr><td>30 % ensimmäisestä 30 000 €:sta</td><td style="text-align:right">${fmt(Math.min(net_gain, 30000) * 0.30)} €</td></tr>
+       ${net_gain > 30000 ? `<tr><td>34 % 30 000 €:n ylittävältä osalta</td><td style="text-align:right">${fmt((net_gain - 30000) * 0.34)} €</td></tr>` : ''}`;
+
+  const html = `<!DOCTYPE html><html lang="fi"><head><meta charset="UTF-8"/>
+<title>Kryptoveroilmoitus ${year}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; font-size: 12px; color: #1a1a19; padding: 32px 40px; }
+  h1 { font-size: 18px; font-weight: 600; margin-bottom: 2px; }
+  .sub { font-size: 12px; color: #666; margin-bottom: 24px; }
+  h2 { font-size: 13px; font-weight: 600; margin: 20px 0 8px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+  th { font-size: 11px; font-weight: 600; text-align: left; padding: 5px 6px; background: #f5f5f4; border-bottom: 1px solid #ddd; }
+  td { padding: 5px 6px; border-bottom: 0.5px solid #eee; vertical-align: top; }
+  .summary-table td:first-child { color: #444; }
+  .summary-table tr:last-child td { font-weight: 600; border-top: 1px solid #ccc; border-bottom: none; padding-top: 8px; }
+  .tag { font-size: 9px; background: #e8f0e0; color: #3b6d11; padding: 1px 4px; border-radius: 4px; vertical-align: middle; }
+  .notice { font-size: 11px; color: #555; background: #f5f5f4; border-left: 3px solid #aaa; padding: 8px 10px; margin-bottom: 16px; }
+  .footer { font-size: 10px; color: #888; margin-top: 32px; border-top: 0.5px solid #ddd; padding-top: 10px; }
+  @media print { body { padding: 16px 20px; } }
+</style></head><body>
+<h1>Kryptovaluuttojen luovutusvoittolaskelma</h1>
+<div class="sub">Verovuosi ${year} &nbsp;·&nbsp; FIFO-menetelmä &nbsp;·&nbsp; Laadittu ${generated}</div>
+
+${hmo_used ? '<div class="notice">Hankintameno-olettamaa on sovellettu yhdessä tai useammassa myynnissä, kun se johti pienempään verotettavaan voittoon.</div>' : ''}
+${exempt ? '<div class="notice">Vähäisen luovutuksen verovapaus (TVL 48 §): myyntitulot yhteensä ≤ 1 000 € — luovutusvoitto on veroton.</div>' : ''}
+
+<h2>Myynnit eriteltynä</h2>
+<table>
+  <thead><tr>
+    <th>Omaisuuserä</th><th>Myyntipäivä</th><th style="text-align:right">Määrä</th>
+    <th style="text-align:right">Myyntihinta (€)</th><th style="text-align:right">Hankintameno (€)</th>
+    <th style="text-align:right">Voitto / tappio (€)</th><th style="text-align:right">Pitoaika (pv)</th>
+  </tr></thead>
+  <tbody>${rows}</tbody>
+</table>
+
+<h2>Yhteenveto</h2>
+<table class="summary-table">
+  <tbody>
+    <tr><td>Myyntitulot yhteensä</td><td style="text-align:right">${fmt(total_proceeds)} €</td></tr>
+    <tr><td>Hankintameno yhteensä</td><td style="text-align:right">${fmt(total_cost)} €</td></tr>
+    <tr><td>Nettovoitto / -tappio</td><td style="text-align:right;color:${total_gain >= 0 ? '#2d6a0a' : '#a32d2d'}">${total_gain >= 0 ? '+' : ''}${fmt(total_gain)} €</td></tr>
+  </tbody>
+</table>
+
+<h2>Verolaskelma</h2>
+<table class="summary-table">
+  <tbody>
+    ${taxBreakdown}
+    <tr><td>Arvioitu pääomatulovero yhteensä</td><td style="text-align:right">${fmt(tax)} €</td></tr>
+  </tbody>
+</table>
+
+<div class="footer">Laadittu ${generated}</div>
+</body></html>`;
+
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+  win.addEventListener('load', () => win.print());
+}
+
+function download(name, content, mime) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], { type: mime }));
+  a.download = name;
+  a.click();
+}
+
+renderTransactions();
+updateFormType();
+</script>
+</body>
+</html>
