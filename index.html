@@ -63,9 +63,9 @@
     color: var(--color-text-primary);
     min-height: 100vh;
     padding: 2rem 1rem;
+    overflow-y: scroll;
   }
   .container { max-width: 860px; margin: 0 auto; }
-  * { box-sizing: border-box; }
   h2 { font-size: 18px; font-weight: 500; color: var(--color-text-primary); margin-bottom: 4px; }
   .sub { font-size: 13px; color: var(--color-text-secondary); margin-bottom: 1.5rem; }
   .tabs { display: flex; margin-bottom: 1.5rem; border-bottom: 1px solid var(--color-border-tertiary); }
@@ -99,9 +99,9 @@
     cursor: pointer;
     font-family: var(--font-sans);
   }
-  button:hover { background: var(--color-background-tertiary); }
+  button:hover { filter: brightness(0.92); }
   .btn-primary { background: var(--color-text-primary); color: var(--color-background-primary); border-color: var(--color-text-primary); }
-  .btn-primary:hover { opacity: 0.85; }
+  .btn-primary:hover { filter: brightness(1.4); }
   .btn-danger { color: var(--color-text-danger); border-color: var(--color-border-danger); }
   .tx-list { margin-top: 1rem; }
   .tx-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: var(--border-radius-md); background: var(--color-background-secondary); margin-bottom: 6px; font-size: 13px; }
@@ -138,6 +138,7 @@
   .badge-hmo { display: inline-block; font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 99px; background: var(--color-background-success); color: var(--color-text-success); vertical-align: middle; margin-left: 4px; }
   .cost-actual { font-size: 11px; color: var(--color-text-tertiary); margin-top: 2px; }
 </style>
+
 </head>
 <body>
 <div class="container">
@@ -293,6 +294,10 @@ function fmt(n) {
   return new Intl.NumberFormat('fi-FI', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 }
 
+function esc(str) {
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 function renderTransactions() {
   const list = document.getElementById('tx-list');
   if (transactions.length === 0) {
@@ -303,8 +308,8 @@ function renderTransactions() {
     <div class="tx-item">
       <span class="badge badge-${t.type}">${t.type === 'buy' ? 'BUY' : 'SELL'}</span>
       <div class="tx-info">
-        <div>${t.asset} — ${t.amount} units @ ${fmt(t.total_eur / t.amount)} €/unit</div>
-        <div class="tx-meta">${t.date}${t.notes ? ' · ' + t.notes : ''} · Total: ${fmt(t.total_eur)} €</div>
+        <div>${esc(t.asset)} — ${t.amount} units @ ${fmt(t.total_eur / t.amount)} €/unit</div>
+        <div class="tx-meta">${esc(t.date)}${t.notes ? ' · ' + esc(t.notes) : ''} · Total: ${fmt(t.total_eur)} €</div>
       </div>
       <button class="del-btn" onclick="deleteTransaction(${t.id})" title="Delete">×</button>
     </div>
@@ -356,7 +361,7 @@ function calcFIFO(year) {
           if (lot.remaining < 1e-10) queue.shift();
         }
         const gain = proceeds - total_cost;
-        const use_hmo = total_hmo_cost > total_cost && total_cost > 0;
+        const use_hmo = total_hmo_cost > total_cost;
         const hold_days = lots_used.length > 0 ? lots_used[0].hold_days : 0;
         results.push({
           asset, sell_date: tx.date, amount: tx.amount, proceeds,
@@ -413,8 +418,8 @@ function renderResults() {
         </tr></thead>
         <tbody>
           ${results.map(r => `<tr>
-            <td>${r.asset}</td>
-            <td>${r.sell_date}</td>
+            <td>${esc(r.asset)}</td>
+            <td>${esc(r.sell_date)}</td>
             <td>${r.amount.toFixed(8).replace(/\.?0+$/, '')}</td>
             <td>${fmt(r.proceeds)}</td>
             <td>
@@ -460,16 +465,35 @@ function switchTab(name) {
   if (name === 'results') { updateYearSelect(); renderResults(); }
 }
 
+function parseCSVLine(line) {
+  const result = [];
+  let cur = '', inQuote = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQuote && line[i + 1] === '"') { cur += '"'; i++; }
+      else inQuote = !inQuote;
+    } else if (ch === ',' && !inQuote) {
+      result.push(cur.trim());
+      cur = '';
+    } else {
+      cur += ch;
+    }
+  }
+  result.push(cur.trim());
+  return result;
+}
+
 function importCSV() {
   const raw = document.getElementById('csv-input').value.trim();
   const msg = document.getElementById('import-msg');
   if (!raw) { msg.textContent = 'Nothing to import.'; return; }
   const lines = raw.split('\n').filter(l => l.trim());
-  const header = lines[0].toLowerCase().split(',').map(h => h.trim());
+  const header = parseCSVLine(lines[0].toLowerCase());
   const ci = h => header.indexOf(h);
   let added = 0, errors = 0;
   for (let i = 1; i < lines.length; i++) {
-    const cols = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+    const cols = parseCSVLine(lines[i]);
     try {
       const type = cols[ci('type')].toLowerCase();
       const date = cols[ci('date')];
@@ -550,8 +574,8 @@ function exportPDF() {
 
   const rows = results.map(r => `
     <tr>
-      <td>${r.asset}</td>
-      <td>${r.sell_date}</td>
+      <td>${esc(r.asset)}</td>
+      <td>${esc(r.sell_date)}</td>
       <td style="text-align:right">${r.amount.toFixed(8).replace(/\.?0+$/, '')}</td>
       <td style="text-align:right">${fmt(r.proceeds)}</td>
       <td style="text-align:right">${fmt(r.effective_cost)}${r.use_hmo ? ' <span class="tag">HMO</span>' : ''}</td>
@@ -628,9 +652,11 @@ ${exempt ? '<div class="notice">Vähäisen luovutuksen verovapaus (TVL 48 §): m
 
 function download(name, content, mime) {
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([content], { type: mime }));
+  const url = URL.createObjectURL(new Blob([content], { type: mime }));
+  a.href = url;
   a.download = name;
   a.click();
+  URL.revokeObjectURL(url);
 }
 
 renderTransactions();
