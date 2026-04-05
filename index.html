@@ -158,7 +158,7 @@
 
   <div id="transactions" class="section active">
     <div class="info-box">
-      <strong>How to use this calculator:</strong> Enter every crypto purchase and sale you've made. You need both — purchases tell the calculator what you originally paid (your cost basis), and sales trigger the tax calculation. You don't owe tax when you buy, only when you sell.<br><br>
+      <strong>How to use this calculator:</strong> Enter every crypto purchase and sale you've made. You need both — purchases establish your cost basis (using the market price at the time), and sales trigger the tax calculation. You don't owe tax when you buy, only when you sell.<br><br>
       <strong>Traded one crypto for another?</strong> That counts as a taxable sale in Finland. Enter it as a sell of the coin you gave up (at its EUR market value on that day), then a buy of the coin you received.
     </div>
     <div class="card">
@@ -188,9 +188,14 @@
           <span class="field-hint">Number of coins or tokens</span>
         </div>
         <div class="field">
-          <label id="price-label">Total cost (€ incl. fees)</label>
+          <label>Market price (€/unit)</label>
+          <input type="number" id="tx-unit-price" placeholder="52000" step="any" min="0" />
+          <span class="field-hint">Price per coin at trade time, excl. fees.</span>
+        </div>
+        <div class="field">
+          <label id="price-label">Total cost/proceeds (€)</label>
           <input type="number" id="tx-price" placeholder="15000" step="any" min="0" />
-          <span class="field-hint" id="price-hint">The full amount you paid in euros, including any trading fees</span>
+          <span class="field-hint" id="price-hint">Actual amount paid or received incl. fees. Used only if market price is not entered.</span>
         </div>
         <div class="field">
           <label>Notes (optional)</label>
@@ -222,7 +227,7 @@
     <div class="card" style="margin-top:1rem;">
       <div class="section-title">What do these numbers mean?</div>
       <div style="font-size:13px;color:var(--color-text-secondary);display:flex;flex-direction:column;gap:8px;margin-top:8px;">
-        <div><strong style="color:var(--color-text-primary);">Cost basis</strong> — What you originally paid for the coins that were sold, including purchase fees. This is deducted from your proceeds to calculate your gain or loss.</div>
+        <div><strong style="color:var(--color-text-primary);">Cost basis</strong> — The market price you paid per coin at the time of purchase, multiplied by the number of coins sold (FIFO order). Deducted from your proceeds to calculate your gain or loss when HMO does not apply.</div>
         <div><strong style="color:var(--color-text-primary);">FIFO</strong> — "First in, first out." Finnish tax rules require that your oldest coins are treated as sold first. This affects your cost basis and how long each coin was held.</div>
         <div><strong style="color:var(--color-text-primary);">Held (days)</strong> — How long the oldest coins in that sale had been held. The holding period affects whether the acquisition cost presumption can give you a better deduction.</div>
         <div><strong style="color:var(--color-text-primary);">Acquisition cost presumption (hankintameno-olettama, HMO)</strong> — An alternative to using your actual purchase price. Finnish law lets you deduct 20% of the sale price as your cost instead of what you really paid (40% if you held for 10+ years). This is useful if your records are incomplete, or if it simply results in less tax. The calculator applies it automatically when it helps you.</div>
@@ -235,13 +240,14 @@
   <div id="import" class="section">
     <div class="card">
       <div class="section-title">Import from CSV</div>
-      <p style="font-size:13px;color:var(--color-text-secondary);margin-bottom:12px;">Paste CSV with columns: type, date, asset, amount, total_eur (and optional notes). First row = header.</p>
+      <p style="font-size:13px;color:var(--color-text-secondary);margin-bottom:12px;">Paste CSV with columns: type, date, asset, amount, price, total_eur (and optional notes). First row = header. <strong>price</strong> = market price per unit excl. fees — used for all gain calculations. <strong>total_eur</strong> = actual amount paid/received — used only as a fallback when price is not provided.</p>
       <div class="import-area">
-        <textarea id="csv-input" placeholder="type,date,asset,amount,total_eur,notes&#10;buy,2022-01-15,BTC,0.5,15000,Coinbase&#10;sell,2023-06-10,BTC,0.2,8000,"></textarea>
+        <textarea id="csv-input" placeholder="type,date,asset,amount,price,total_eur,notes&#10;buy,2022-01-15,BTC,0.5,30000,15000,Coinbase&#10;sell,2023-06-10,BTC,0.2,40000,8000,"></textarea>
       </div>
       <div class="btn-row">
         <button class="btn-primary" onclick="importCSV()">Import</button>
         <button onclick="loadSampleData()">Load sample data</button>
+        <button onclick="clearAllData()" style="color:var(--color-text-danger);">Clear all data</button>
       </div>
       <div id="import-msg" style="font-size:12px;margin-top:8px;"></div>
     </div>
@@ -257,10 +263,8 @@ function save() {
 
 function updateFormType() {
   const t = document.getElementById('tx-type').value;
-  document.getElementById('price-label').textContent = t === 'buy' ? 'Total cost (€ incl. fees)' : 'Total proceeds (€ after fees)';
-  document.getElementById('price-hint').textContent = t === 'buy'
-    ? 'The full amount you paid in euros, including any trading fees'
-    : 'The total euros you received from the sale, after any trading fees';
+  document.getElementById('price-label').textContent = t === 'buy' ? 'Total cost (€)' : 'Total proceeds (€)';
+  document.getElementById('price-hint').textContent = 'Actual amount paid or received incl. fees. Used only if market price is not entered.';
 }
 
 function addTransaction() {
@@ -268,13 +272,16 @@ function addTransaction() {
   const date = document.getElementById('tx-date').value;
   const asset = document.getElementById('tx-asset').value.trim().toUpperCase();
   const amount = parseFloat(document.getElementById('tx-amount').value);
+  const unit_price_raw = document.getElementById('tx-unit-price').value;
+  const unit_price = unit_price_raw !== '' ? parseFloat(unit_price_raw) : null;
   const price = parseFloat(document.getElementById('tx-price').value);
   const notes = document.getElementById('tx-notes').value.trim();
-  if (!date || !asset || isNaN(amount) || amount <= 0 || isNaN(price) || price < 0) {
-    alert('Please fill in date, asset, amount, and price/cost correctly.');
+  if (!date || !asset || isNaN(amount) || amount <= 0 || (unit_price === null && isNaN(price))) {
+    alert('Please fill in date, asset, amount, and either market price or total cost/proceeds.');
     return;
   }
-  transactions.push({ id: Date.now(), type, date, asset, amount, total_eur: price, notes });
+  const total_eur = isNaN(price) ? unit_price * amount : price;
+  transactions.push({ id: Date.now(), type, date, asset, amount, unit_price, total_eur, notes });
   transactions.sort((a, b) => a.date.localeCompare(b.date));
   save();
   renderTransactions();
@@ -285,8 +292,17 @@ function clearForm() {
   document.getElementById('tx-date').value = '';
   document.getElementById('tx-asset').value = '';
   document.getElementById('tx-amount').value = '';
+  document.getElementById('tx-unit-price').value = '';
   document.getElementById('tx-price').value = '';
   document.getElementById('tx-notes').value = '';
+}
+
+function clearAllData() {
+  if (!confirm('Clear all transactions? This cannot be undone.')) return;
+  transactions = [];
+  save();
+  renderTransactions();
+  document.getElementById('import-msg').textContent = '';
 }
 
 function deleteTransaction(id) {
@@ -333,7 +349,7 @@ function calcFIFO(year) {
     const queue = [];
     for (const tx of txs) {
       if (tx.type === 'buy') {
-        queue.push({ date: tx.date, amount: tx.amount, cost_per_unit: tx.total_eur / tx.amount, remaining: tx.amount });
+        queue.push({ date: tx.date, amount: tx.amount, cost_per_unit: tx.unit_price ?? (tx.total_eur / tx.amount), remaining: tx.amount });
       } else {
         if (tx.date.substring(0, 4) !== year) {
           let rem = tx.amount;
@@ -347,6 +363,8 @@ function calcFIFO(year) {
           continue;
         }
         const proceeds = tx.total_eur;
+        // gross uses market price × amount for HMO (matching Vero); falls back to proceeds if no unit_price
+        const gross = (tx.unit_price != null) ? tx.unit_price * tx.amount : proceeds;
         const sell_date_obj = new Date(tx.date);
         let remaining = tx.amount;
         let total_cost = 0;
@@ -356,23 +374,22 @@ function calcFIFO(year) {
           const lot = queue[0];
           const used = Math.min(lot.remaining, remaining);
           total_cost += used * lot.cost_per_unit;
-          // HMO calculated per lot: each lot's share of proceeds × its own HMO rate
+          // HMO based on gross (market price × amount) per lot share
           const lot_hold_days = Math.round((sell_date_obj - new Date(lot.date)) / 86400000);
           const lot_hmo_rate = lot_hold_days / 365 >= 10 ? 0.4 : 0.2;
-          total_hmo_cost += (used / tx.amount) * proceeds * lot_hmo_rate;
+          total_hmo_cost += (used / tx.amount) * gross * lot_hmo_rate;
           lots_used.push({ date: lot.date, amount: used, cost_per_unit: lot.cost_per_unit, hold_days: lot_hold_days });
           lot.remaining -= used;
           remaining -= used;
           if (lot.remaining < 1e-10) queue.shift();
         }
-        const gain = proceeds - total_cost;
         const use_hmo = total_hmo_cost > total_cost;
         const hold_days = lots_used.length > 0 ? lots_used[0].hold_days : 0;
         results.push({
-          asset, sell_date: tx.date, amount: tx.amount, proceeds,
+          asset, sell_date: tx.date, amount: tx.amount, proceeds, gross,
           cost_basis: total_cost, hmo_cost: total_hmo_cost, use_hmo,
           effective_cost: use_hmo ? total_hmo_cost : total_cost,
-          gain: use_hmo ? proceeds - total_hmo_cost : gain,
+          gain: use_hmo ? gross - total_hmo_cost : gross - total_cost,
           hold_days, notes: tx.notes
         });
       }
@@ -393,7 +410,7 @@ function renderResults() {
   if (!year) { content.innerHTML = '<div class="empty">No transactions to calculate. Add transactions first.</div>'; return; }
   const results = calcFIFO(year);
   if (results.length === 0) { content.innerHTML = '<div class="empty">No sales in ' + year + '. Select a different tax year.</div>'; return; }
-  const total_proceeds = results.reduce((s, r) => s + r.proceeds, 0);
+  const total_proceeds = results.reduce((s, r) => s + r.gross, 0);
   const total_cost = results.reduce((s, r) => s + r.effective_cost, 0);
   const total_gain = results.reduce((s, r) => s + r.gain, 0);
   const net_gain = Math.max(0, total_gain);
@@ -403,7 +420,7 @@ function renderResults() {
   const hmo_used = results.some(r => r.use_hmo);
 
   // Calculate how much tax HMO saved vs using actual cost basis throughout
-  const gain_without_hmo = results.reduce((s, r) => s + (r.proceeds - r.cost_basis), 0);
+  const gain_without_hmo = results.reduce((s, r) => s + (r.gross - r.cost_basis), 0);
   const tax_without_hmo = exempt ? 0 : calcTax(Math.max(0, gain_without_hmo));
   const hmo_tax_saving = tax_without_hmo - tax;
 
@@ -426,7 +443,7 @@ function renderResults() {
             <td>${esc(r.asset)}</td>
             <td>${esc(r.sell_date)}</td>
             <td>${r.amount.toFixed(8).replace(/\.?0+$/, '')}</td>
-            <td>${fmt(r.proceeds)}</td>
+            <td>${fmt(r.gross)}</td>
             <td>
               ${r.use_hmo
                 ? `${fmt(r.effective_cost)} <span class="badge-hmo">HMO</span>
@@ -504,9 +521,12 @@ function importCSV() {
       const date = cols[ci('date')];
       const asset = cols[ci('asset')].toUpperCase();
       const amount = parseFloat(cols[ci('amount')]);
-      const total_eur = parseFloat(cols[ci('total_eur')]);
+      const price_col = ci('price');
+      const unit_price = price_col >= 0 && cols[price_col] ? parseFloat(cols[price_col]) : null;
+      const total_eur_raw = parseFloat(cols[ci('total_eur')]);
+      const total_eur = (unit_price != null && isNaN(total_eur_raw)) ? unit_price * amount : total_eur_raw;
       if (!['buy','sell'].includes(type) || !date || !asset || isNaN(amount) || isNaN(total_eur)) throw new Error();
-      transactions.push({ id: Date.now() + i, type, date, asset, amount, total_eur, notes: cols[ci('notes')] || '' });
+      transactions.push({ id: Date.now() + i, type, date, asset, amount, unit_price, total_eur, notes: cols[ci('notes')] || '' });
       added++;
     } catch { errors++; }
   }
@@ -520,33 +540,33 @@ function importCSV() {
 function loadSampleData() {
   transactions = [
     // Early BTC buy — very low cost, will trigger 40% HMO (held 10+ years)
-    { id:  1, type: 'buy',  date: '2014-06-01', asset: 'BTC', amount: 0.5,  total_eur: 150,   notes: 'Early purchase' },
+    { id:  1, type: 'buy',  date: '2014-06-01', asset: 'BTC', amount: 0.5,  unit_price: 300,   total_eur: 150,   notes: 'Early purchase' },
     // Early ETH buy — low cost, will trigger 20% HMO
-    { id:  2, type: 'buy',  date: '2017-08-15', asset: 'ETH', amount: 3,    total_eur: 900,   notes: 'Bitstamp' },
+    { id:  2, type: 'buy',  date: '2017-08-15', asset: 'ETH', amount: 3,    unit_price: 300,   total_eur: 900,   notes: 'Bitstamp' },
     // SOL buy — low cost, will trigger 20% HMO
-    { id:  3, type: 'buy',  date: '2020-12-01', asset: 'SOL', amount: 50,   total_eur: 1500,  notes: '' },
+    { id:  3, type: 'buy',  date: '2020-12-01', asset: 'SOL', amount: 50,   unit_price: 30,    total_eur: 1500,  notes: '' },
     // BTC buy at peak — high cost, HMO will NOT help when sold
-    { id:  4, type: 'buy',  date: '2021-03-15', asset: 'BTC', amount: 0.5,  total_eur: 24000, notes: 'Coinbase' },
+    { id:  4, type: 'buy',  date: '2021-03-15', asset: 'BTC', amount: 0.5,  unit_price: 48000, total_eur: 24000, notes: 'Coinbase' },
     // ETH buy at peak — high cost, will produce a loss when sold
-    { id:  5, type: 'buy',  date: '2021-09-20', asset: 'ETH', amount: 5,    total_eur: 15000, notes: 'Binance' },
+    { id:  5, type: 'buy',  date: '2021-09-20', asset: 'ETH', amount: 5,    unit_price: 3000,  total_eur: 15000, notes: 'Binance' },
     // BTC top-up
-    { id:  6, type: 'buy',  date: '2022-02-10', asset: 'BTC', amount: 0.3,  total_eur: 12000, notes: '' },
+    { id:  6, type: 'buy',  date: '2022-02-10', asset: 'BTC', amount: 0.3,  unit_price: 40000, total_eur: 12000, notes: '' },
     // ETH top-up
-    { id:  7, type: 'buy',  date: '2023-07-01', asset: 'ETH', amount: 2,    total_eur: 3600,  notes: '' },
+    { id:  7, type: 'buy',  date: '2023-07-01', asset: 'ETH', amount: 2,    unit_price: 1800,  total_eur: 3600,  notes: '' },
 
     // --- 2024 sales ---
-    // ETH: FIFO uses 2017 lot (€900 cost). HMO 20% = €1,800 > actual → HMO applied
-    { id:  8, type: 'sell', date: '2024-06-15', asset: 'ETH', amount: 3,    total_eur: 9000,  notes: 'Coinbase' },
-    // BTC: FIFO uses 2014 lot (€150 cost, 10+ years). HMO 40% = €16,000 >> actual → HMO applied
-    { id:  9, type: 'sell', date: '2024-11-10', asset: 'BTC', amount: 0.5,  total_eur: 40000, notes: '' },
-    // ETH: FIFO uses 2021 lot (€12,000 cost). HMO 20% = €2,000 < actual → loss of €2,000
-    { id: 10, type: 'sell', date: '2024-12-10', asset: 'ETH', amount: 4,    total_eur: 10000, notes: '' },
+    // ETH: FIFO uses 2017 lot (€300 cost). HMO 20% = €600 > actual → HMO applied
+    { id:  8, type: 'sell', date: '2024-06-15', asset: 'ETH', amount: 3,    unit_price: 3000,  total_eur: 9000,  notes: 'Coinbase' },
+    // BTC: FIFO uses 2014 lot (€300 cost, 10+ years). HMO 40% = €32,000 >> actual → HMO applied
+    { id:  9, type: 'sell', date: '2024-11-10', asset: 'BTC', amount: 0.5,  unit_price: 80000, total_eur: 40000, notes: '' },
+    // ETH: FIFO uses 2021 lot (€3,000 cost). HMO 20% = €2,000 < actual → loss of €2,000
+    { id: 10, type: 'sell', date: '2024-12-10', asset: 'ETH', amount: 4,    unit_price: 2500,  total_eur: 10000, notes: '' },
 
     // --- 2025 sales ---
-    // SOL: FIFO uses 2020 lot (€900 cost). HMO 20% = €1,080 > actual → HMO applied
-    { id: 11, type: 'sell', date: '2025-01-20', asset: 'SOL', amount: 30,   total_eur: 5400,  notes: '' },
-    // BTC: FIFO uses 2021 lot (€24,000 cost). HMO 20% = €7,600 < actual → no HMO, gain €14,000
-    { id: 12, type: 'sell', date: '2025-03-01', asset: 'BTC', amount: 0.5,  total_eur: 38000, notes: '' },
+    // SOL: FIFO uses 2020 lot (€30 cost). HMO 20% = €36 > actual → HMO applied
+    { id: 11, type: 'sell', date: '2025-01-20', asset: 'SOL', amount: 30,   unit_price: 180,   total_eur: 5400,  notes: '' },
+    // BTC: FIFO uses 2021 lot (€48,000 cost). HMO 20% = €15,200 < actual → no HMO, gain €14,000
+    { id: 12, type: 'sell', date: '2025-03-01', asset: 'BTC', amount: 0.5,  unit_price: 76000, total_eur: 38000, notes: '' },
   ];
   save();
   renderTransactions();
@@ -555,8 +575,8 @@ function loadSampleData() {
 }
 
 function exportCSV() {
-  const rows = ['type,date,asset,amount,total_eur,notes', ...transactions.map(t =>
-    [t.type, t.date, t.asset, t.amount, t.total_eur, t.notes || ''].join(','))].join('\n');
+  const rows = ['type,date,asset,amount,price,total_eur,notes', ...transactions.map(t =>
+    [t.type, t.date, t.asset, t.amount, t.unit_price ?? '', t.total_eur, t.notes || ''].join(','))].join('\n');
   download('crypto_transactions.csv', rows, 'text/csv');
 }
 
@@ -567,7 +587,7 @@ function exportPDF() {
   const results = calcFIFO(year);
   if (results.length === 0) { alert('Ei myyntejä vuodelle ' + year + '.'); return; }
 
-  const total_proceeds = results.reduce((s, r) => s + r.proceeds, 0);
+  const total_proceeds = results.reduce((s, r) => s + r.gross, 0);
   const total_cost     = results.reduce((s, r) => s + r.effective_cost, 0);
   const total_gain     = results.reduce((s, r) => s + r.gain, 0);
   const net_gain       = Math.max(0, total_gain);
@@ -582,7 +602,7 @@ function exportPDF() {
       <td>${esc(r.asset)}</td>
       <td>${esc(r.sell_date)}</td>
       <td style="text-align:right">${r.amount.toFixed(8).replace(/\.?0+$/, '')}</td>
-      <td style="text-align:right">${fmt(r.proceeds)}</td>
+      <td style="text-align:right">${fmt(r.gross)}</td>
       <td style="text-align:right">${fmt(r.effective_cost)}${r.use_hmo ? ' <span class="tag">HMO</span>' : ''}</td>
       <td style="text-align:right;color:${r.gain >= 0 ? '#2d6a0a' : '#a32d2d'}">${r.gain >= 0 ? '+' : ''}${fmt(r.gain)}</td>
       <td style="text-align:right">${r.hold_days}</td>
